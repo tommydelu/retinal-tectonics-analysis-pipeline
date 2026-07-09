@@ -76,6 +76,13 @@ class Dataset1Subjects:
     def _is_flipped(self, subject: str) -> bool:
         return subject in self._flipped_subjects
 
+    @staticmethod
+    def _resize_to_match(mask: np.ndarray, target_shape: tuple) -> np.ndarray:
+        """Alcuni soggetti hanno maschera/label a una risoluzione diversa dall'immagine IR."""
+        if mask.shape != target_shape:
+            mask = cv.resize(mask, (target_shape[1], target_shape[0]), interpolation=cv.INTER_NEAREST)
+        return mask
+
     def _find_auto_mask(self, subject: str, timepoint: str) -> Optional[np.ndarray]:
         for ext in ('.JPG', '.jpg', '.JPEG', '.jpeg', '.PNG', '.png'):
             path = os.path.join(self.auto_masks_path, f"{subject}{timepoint}{ext}")
@@ -139,6 +146,8 @@ class Dataset1Subjects:
                 vessel_mask_post = cv.imread(os.path.join(self.labels_path, subject, 'total_2.png'), 0)
                 if vessel_mask_pre is None or vessel_mask_post is None:
                     continue
+                vessel_mask_pre = self._resize_to_match(vessel_mask_pre, img_pre_raw.shape)
+                vessel_mask_post = self._resize_to_match(vessel_mask_post, img_post_raw.shape)
                 if self._is_flipped(subject):
                     vessel_mask_pre = cv.flip(vessel_mask_pre, 1)
                     vessel_mask_post = cv.flip(vessel_mask_post, 1)
@@ -149,6 +158,8 @@ class Dataset1Subjects:
                 vessel_mask_post = self._find_auto_mask(subject, 'POST')
                 if vessel_mask_pre is None or vessel_mask_post is None:
                     continue
+                vessel_mask_pre = self._resize_to_match(vessel_mask_pre, img_pre_raw.shape)
+                vessel_mask_post = self._resize_to_match(vessel_mask_post, img_post_raw.shape)
                 # JPG con lieve rumore di compressione attorno a 0/255: soglia a metà scala
                 vessel_mask_pre = vessel_mask_pre > 127
                 vessel_mask_post = vessel_mask_post > 127
