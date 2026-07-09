@@ -1,0 +1,11 @@
+opencv-python
+opencv-contrib-python
+numpy
+matplotlib
+PyWavelets
+pandas
+scikit-image
+scipy
+tqdm
+Pillow
+psd-tools

@@ -1,0 +1,8 @@
+.venv
+.vscode
+raw
+labels_reversed
+results
+images_to_put_on_paper
+paper_imgs
+__pycache__

@@ -1,0 +1,79 @@
+MACULAR HOLE SURGERY AND RETINAL TECTONICS The Impact of Internal Limiting Membrane Peeling Size on Tangential Retinal Displacement
+
+
+
+------------------ MEDICINA ALLA BASE DEL PAPER ---------------------
+
+Macula = intero cerchio centrale del bersaglio, zona della retina che permette di vedere i colori e leggere
+Fovea = centro perfetto del bersaglio, punto piccolissimo nel mezzo della macula dove la visione è al max della nitidezza.
+Foro maculare = buco che si forma nella fovea, basta un buco piccolo per far crollare la capacità di vedere dettagli.
+
+
+Situazione normale: macula (centro retina) è un tessuto continuo e integro
+Patologia: buco al centro della retina, mancano fotorecettori
+Obiettivo: con tecnica chirurgica, la vitrectomia, si chiude il buco, si rilassano le trazioni sulla retina e permettere ai bordi del foro di riavvicinarsi e cicatrizzarsi insieme, tornando a formare una superficie continua
+
+
+1) rimozione vitreo, si rimuove il gel trasparente (corpo vitreo) che riempie l'occhio per poter accedere alla retina
+2) peeling della membrana limitante interna sulla superficie della retina, molto sottile, il chirurgo la colora di blu per vederla meglio e poi la sbuccia usando delle pinze. Rimuovendola si rilassano le tensioni sulla retina
+3) alla fine dell'intervento, l'occhio viene riempito con una bolla di gas
+4) posizione a faccia in giù cosi la bolla galleggia verso l'alto e va a premere contro il buco tenendolo chiuso mentre guarisce
+
+
+
+----------------------------------------------------------------------
+
+
+Scopo: valutare spostamento tangenziale della retina (movimento tessuto retinico) che si verifica dopo l'intervento chirurgico per il foro maculare (MH). L'estensione della rimozione (peeling) della membrana limitante interna (ILM) influenza l'entità di questo movimento retinico?
+
+Vitrectomia pars plana per i fori maculari è iniziata nel 1991 con 58% di successo. Ora con peeling della ILM, del tamponamento con gas e del posizionamento post operatorio a faccia in giù si hanno 90-100% successo.
+
+La ILM è sottilissima, ma estremamente resistente meccanicamente, contribuisce a più del 50% della rigidità retinica, rimuovendola si rilasciano le tensioni interne della retina, si provoca quindi uno spostamento tangenziale del tessuto che facilita la chiusura del foro. La dimensione dell'area di peeling influenza la grandezza e direzione di questo movimento o il tasso di successo della chiusura?
+
+
+
+
+METODI:
+Peeling small, rimozione di circa 2 diametri papillari
+Peeling large, rimozione estesa fino alle arcate vascolari e al margine temporale del nervo ottico
+
+Stessa tecnica chirurgica per tutti i soggetti (quella scritta sopra)
+
+Per valutare il movimento della retina: acquisite immagini retiniche near infrared prima dell'intervento e 6 mesi dopo. Sono state poi allineate le immagini usando il disco ottico come riferimento, vasi sanguigni disegnati a mano. Calcolo dello spostamento vettoriale (con metodo di stima del movimento a due fotogrammi di Farneback). Analisi dello spostamento in due zone concentriche, un cerchio centrale di 4 mm e un anello esterno di 8mm. Movimento orizzontale positivo = movimento verso il disco, movimento verticale positivo = movimento verso la retina superiore
+
+For the statistical analysis: with R and RStudio they used Wilcoxon signed rank test, MannWhitney test, Spearman correlation (if P < 0.05 then statistically significant)
+
+
+
+
+
+
+RISULTATI:
+Dopo l'intervento la retina tende a scivolare verso il nervo ottico, in media uno spostamento di circa 31 micron verso il disco ottico, gruppo del peeling ampio = spostamento significativamente maggiore rispetto al gruppo del peeling piccolo (in entrambi i cerchi concentrici).
+
+Peeling ampio: foro chiuso nel 100% dei casi
+Peeling piccolo: 83.3% dei casi
+
+Dopo l'intervento la vista è migliorata in tutti i pazienti significativamente
+Solo nel peeling piccolo si è formata una nuova membrana epiretinica (una sorta di cicatrice) sopra la retina, detta pucker
+
+Altre alterazioni strutturali osservate in entrambi i gruppi
+
+
+
+
+DISCUSSIONE:
+Perchè la retina si sposta verso il nervo ottico? Fibre nervose ancorate al nervo ottico, quando rimuovo la ILM la retina si ritrae in quella direzione. La retina si sposta di meno attorno alla macula rispetto al centro. Probabilmente perchè ci sono vasi sanguigni più grandi che rendono il tessuto più rigido e difficile da muovere.
+
+Quanto peeling fare? Peeling esteso = chiusura migliore del foto ma si potrebbero causare danni aggiuntivi ad altre strutture, allo stesso tempo peeling esteso = chiusura facilitata del foro. Inoltre peeling ampio = meno rischio di cicatrici, eliminando la possibilità della formazione del pucker
+
+Limiti studio: misura manuale dei vasi = errori, campioni troppo piccoli per avere significatività statistica
+
+
+
+
+
+
+
+
+

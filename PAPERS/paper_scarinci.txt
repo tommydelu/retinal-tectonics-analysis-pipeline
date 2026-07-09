@@ -1,0 +1,49 @@
+RETINAL TECTONICS AFTER MACULAR PUCKER SURGERY
+Thickness Changes and En Face Displacement Recovery
+
+
+
+
+Pucker maculare idiopatico = ERM, membrana epiretinica = patologia, c'è distacco del vitreo posteriore anomalo o incompleto. Residui della ialoide posteriore rimangono aderenti alla superficie retinica e la loro successiva contrazione esercita una trazione tangenziale sulla retina interna ed esterna = spostamento irregolare della retina, ispessimento maculare, disturbi visivi.
+
+Sintomi = deformazione percezione visiva, calo acuità visiva
+
+La vitrectomia pare plana con peeling della membrana può ridurre la deformazione retinica e migliorare la vista, ma non si sa il meccanismo alla base del recupero. Scopo paper = in seguito alla vitrectomia, valutare i cambiamenti nello spessore degli strati retinici, e lo spostamento nel piano tangenziale della retina.
+
+
+
+17 pazienti, valutati prima dell'intervento (T0), a 1 mese (T1), 3 mesi (T3), 6 mesi (T6) dopo l'operazione. Tutti i pazienti operati con vitrectomia con peeling della membrana epiretinica e della ILM utilizzando un colorante.
+Esami eseguiti: acuità visiva, metamorfosi, sensibilità retinica, anatomia
+
+Immagini OCT segmentate automaticamente in strati per analizzarne lo spessore. Primi strati = retina interna (ILM, fibre nervose, cellule gangliari, plessiforme interna), gli strati più esterni analizzati separatamente
+
+Confrontando immagini a infrarossi consecutive (es T0 vs T1) si è calcolato lo spostamento tangenziale della retina.
+Algoritmo = metodo di stima del movimento Farneback, analizza spostamento tra due frame analizzando i dettagli dell'immagine su una griglia
+
+Pre elaborazione = immagini invertite e contrasto uniformato
+Allineamento = immagini roto traslate per togliere errore dovuto a diverso posizionamento occhio durante l'esame
+
+Visualizzazione = mappe vettoriali e pseudo colori
+
+
+
+
+RISULTATI:
+
+Acuità visiva migliorata significativamente dopo 6 mesi, visione distorta verticale diminuita, quella orizzontale no cambiamenti statisticamente significativi.
+Spessore foveale centrale si è ridotto notevolmente, la maggior parte della riduzione avvenuta nella retina interna, in quelli esterni meno riduzione. Riduzione spessore foveale correlata al miglioramento dell'acuità visiva.
+Deformazione media sulla superficie è stata di 155.82 um. La maggior parte dello spostamento nel primo mese dopo l'intervento, nei mesi successivi lo spostamento ha rallentato.. Spostamento + marcato nelle zone periferiche rispetto al centro della fovea
+Forte correlazione tra assottigliamento retina interna e spostamento tangenziale. Spostamento tangenziale non correlato con miglioramento acuità visiva. Spostamento lungo asse verticale correlato con miglioramento della distorsione visiva orizzontale
+
+
+DISCUSSIONE:
+
+Pucker maculare non è un problema solo di superficie. La trazione colpisce la retina a tutto spessore, il peeling della membrana rilascia queste tensioni, innescando un riassestamento 3D della retina che dura per mesi.
+Ci sono stati casi in cui nonostante un ottimo recupero anatomico, la vista non migliora o le distorsioni peggiorano. Il peeling rimuove strutture rigide alterando drasticamente la meccanica retinica, non avviene quindi semplicemente un inversione del processo patologico..
+I vasi sanguigni agiscono come una colonna vertebrale rigida per la retina influenzando come si sposta il tessuto. Ipotesi: cicatrice causata da cellule di Muller, se la cicatrice penetra troppo in profondità il danno è irreversibile, indipendentemente da quanto bene la retina si riposizioni anatomicamente.
+
+Pazienti con miglioramenti visivi maggiori = spostamento intermedio, suggerendo che una certa mobilità post operatoria è segno di una retina ancora sana
+
+
+CONCLUSIONE:
+Rimozione pucker altera l'intera architettura 3D della retina. Questo metodo di misurazione dello spostamento tangenziale  offre una nuova prospettiva per capire perchè alcuni pazienti recuperano la vista e altri no.
