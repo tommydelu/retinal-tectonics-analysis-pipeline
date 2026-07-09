@@ -4,7 +4,6 @@ import math
 import matplotlib.pyplot as plt
 import pywt
 
-
 def create_linear_structuring_elements(element_len = 17, angle_step = 15):
 
     """

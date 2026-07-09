@@ -9,8 +9,16 @@ modalità:
 - "masked": nessuna interpolazione — le metriche vengono calcolate direttamente sul
   campo di flow grezzo di Farneback, ristretto ai soli pixel di vaso affidabili.
 
+La maschera dei vasi può venire da due sorgenti (--mask-source):
+
+- "gt" (default): label manuali (ground-truth), su TUTTI i soggetti del dataset scelto.
+- "auto": output della segmentazione automatica. Disponibile solo per il dataset 1, e
+  solo sui 10 soggetti con Dice Score migliore (BEST_SUBJECTS in subjects.py), perché
+  è l'unico sottoinsieme per cui la segmentazione automatica è stata generata.
+
 Esempio:
-    python -m OPTICAL_FLOW.farneback.src.run_farneback_optical_flow --dataset 1 --mode interpolated
+    python -m OPTICAL_FLOW.farneback.src.run_farneback_optical_flow --dataset 1 --mode interpolated --mask-source gt
+    python -m OPTICAL_FLOW.farneback.src.run_farneback_optical_flow --dataset 1 --mode masked --mask-source auto --save-figures
     python -m OPTICAL_FLOW.farneback.src.run_farneback_optical_flow --dataset 2 --mode masked --save-figures
 """
 
@@ -31,15 +39,14 @@ from OPTICAL_FLOW.farneback.src.flow_metrics import compute_zone_metrics
 from OPTICAL_FLOW.farneback.src.figures import save_quiver_figure
 
 
-def _output_paths(dataset: int):
-    if dataset == 1:
-        results_data_path = os.path.join(PROJECT_ROOT, 'OPTICAL_FLOW', 'farneback', 'results', 'data')
-        figures_path = os.path.join(PROJECT_ROOT, 'OPTICAL_FLOW', 'farneback', 'results', 'figures')
-        npy_cache_path = os.path.join(results_data_path, 'RBF_pred_matrices1')
-    else:
-        results_data_path = os.path.join(PROJECT_ROOT, 'OPTICAL_FLOW', 'results', 'ds2', 'farneback', 'results', 'data')
-        figures_path = os.path.join(PROJECT_ROOT, 'OPTICAL_FLOW', 'results', 'ds2', 'farneback', 'results', 'figures')
-        npy_cache_path = os.path.join(results_data_path, 'RBF_pred_matrices')
+IMAGE_TYPE = "ir_raw"  # sfondo su cui disegnare i vettori: IR pre-op grezza, senza CLAHE
+
+
+def _output_paths(dataset: int, mask_source: str):
+    dataset_base_path = os.path.join(PROJECT_ROOT, 'OPTICAL_FLOW', 'farneback', 'results', f'ds{dataset}')
+    results_data_path = os.path.join(dataset_base_path, 'data')
+    figures_path = os.path.join(dataset_base_path, 'figures', mask_source, IMAGE_TYPE)
+    npy_cache_path = os.path.join(results_data_path, 'interpolated_cache', mask_source)
 
     os.makedirs(results_data_path, exist_ok=True)
     os.makedirs(npy_cache_path, exist_ok=True)
@@ -64,14 +71,19 @@ def _dense_field_for_subject(flow: FarnebackFlowField, subject_id: str, comparis
     return dense_field
 
 
-def run(dataset: int, mode: str, save_figures: bool = False) -> pd.DataFrame:
-    subjects_source = Dataset1Subjects() if dataset == 1 else Dataset2Subjects()
-    results_data_path, figures_path, npy_cache_path = _output_paths(dataset)
+def run(dataset: int, mode: str, mask_source: str = "gt", save_figures: bool = False) -> pd.DataFrame:
+    if dataset == 2 and mask_source == "auto":
+        raise ValueError(
+            "Il dataset 2 non ha maschere di segmentazione automatica: usa --mask-source gt."
+        )
+
+    subjects_source = Dataset1Subjects(mask_source=mask_source) if dataset == 1 else Dataset2Subjects()
+    results_data_path, figures_path, npy_cache_path = _output_paths(dataset, mask_source)
     interpolator = RBFFlowInterpolator()
 
     all_results = []
 
-    for subject in tqdm(subjects_source, desc=f"Dataset {dataset} ({mode})"):
+    for subject in tqdm(subjects_source, desc=f"Dataset {dataset} ({mask_source}, {mode})"):
         flow = FarnebackFlowField(subject.img_pre, subject.img_post,
                                    subject.vessel_mask_pre, subject.vessel_mask_post,
                                    MAX_ALLOWED_MOVEMENT)
@@ -100,7 +112,7 @@ def run(dataset: int, mode: str, save_figures: bool = False) -> pd.DataFrame:
             save_quiver_figure(subject, u, v, zones, INNER_RADIUS, OUTER_RADIUS, fig_path)
 
     results_df = pd.DataFrame(all_results)
-    csv_path = os.path.join(results_data_path, f"dataset{dataset}_{mode}_metrics.csv")
+    csv_path = os.path.join(results_data_path, f"dataset{dataset}_{mask_source}_{mode}_metrics.csv")
     results_df.to_csv(csv_path, index=False)
     print(f"\nMetriche salvate in: {csv_path}")
 
@@ -112,7 +124,10 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", type=int, choices=[1, 2], required=True, help="Dataset su cui calcolare l'optical flow")
     parser.add_argument("--mode", choices=["interpolated", "masked"], required=True,
                          help="'interpolated' = interpolazione RBF sui vasi; 'masked' = solo sui pixel dei vasi, senza interpolazione")
+    parser.add_argument("--mask-source", choices=["gt", "auto"], default="gt",
+                         help="'gt' = maschere ground-truth, su tutti i soggetti (default); "
+                              "'auto' = maschere di segmentazione automatica, solo dataset 1, limitate ai 10 soggetti con Dice Score migliore")
     parser.add_argument("--save-figures", action="store_true", help="Salva anche le figure con il campo vettoriale sovrapposto")
     args = parser.parse_args()
 
-    run(dataset=args.dataset, mode=args.mode, save_figures=args.save_figures)
+    run(dataset=args.dataset, mode=args.mode, mask_source=args.mask_source, save_figures=args.save_figures)

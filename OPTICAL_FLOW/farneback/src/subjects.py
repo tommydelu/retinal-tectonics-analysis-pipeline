@@ -6,7 +6,6 @@ from typing import Optional, Iterator
 
 import cv2 as cv
 import numpy as np
-import pandas as pd
 
 from common.paths import PROJECT_ROOT
 from common.image_filters import clahe
@@ -27,9 +26,24 @@ class SubjectPair:
 
 class Dataset1Subjects:
     """
-    Soggetti del dataset 1: confronto PRE/POST su un set fisso di 10 soggetti già
-    selezionati, con fovea nota a priori e maschera dei vasi derivata dalle label
-    manuali (ground-truth), non dall'output della segmentazione automatica.
+    Soggetti del dataset 1: confronto PRE/POST.
+
+    mask_source="gt" (default): maschera dei vasi dalle label manuali (ground-truth),
+    su TUTTI i soggetti del dataset.
+    mask_source="auto": maschera dai risultati della segmentazione automatica, limitata
+    ai 10 soggetti con Dice Score migliore (BEST_SUBJECTS) — è l'unico sottoinsieme per
+    cui la segmentazione automatica è stata generata/validata.
+
+    Il centro della fovea è noto a priori per i 10 BEST_SUBJECTS (cliccato manualmente
+    una volta). Per tutti gli altri soggetti (rilevanti solo con mask_source="gt") viene
+    richiesto con un click interattivo al primo utilizzo e da lì in poi riusato da una
+    cache su file JSON, con lo stesso meccanismo di Dataset2Subjects.
+
+    La maschera dei vasi (gt o auto) viene flippata orizzontalmente per i soggetti
+    elencati in vasi_specchiati_dataset1.txt (nella root del progetto), generato da
+    OPTICAL_FLOW/segmentation/src/utils/extract_flipped_subjects.py a partire dalla
+    colonna 'Flipped' di seg_metrics1.csv — cioè i soggetti per cui l'immagine IR
+    risulta specchiata rispetto ai vasi annotati.
     """
 
     BEST_SUBJECTS = ['L_03', 'L_06', 'L_15', 'L_16', 'L_42', 'L_48', 'L_63', 'L_78', 'S_36', 'S_46']
@@ -40,15 +54,69 @@ class Dataset1Subjects:
         'S_36': (968, 1006), 'S_46': (853, 1120),
     }
 
-    def __init__(self):
+    def __init__(self, mask_source: str = "gt"):
+        if mask_source not in ("gt", "auto"):
+            raise ValueError(f"mask_source deve essere 'gt' o 'auto', ricevuto: {mask_source!r}")
+        self.mask_source = mask_source
+
         self.src_path = os.path.join(PROJECT_ROOT, 'DATA', 'DATASET1', 'raw', 'IR')
-        self.labels_path = os.path.join(PROJECT_ROOT, 'DATA', 'DATASET1', 'processed', 'results', 'figures', 'labels_reversed')
-        self.csv_seg_path = os.path.join(PROJECT_ROOT, 'OPTICAL_FLOW', 'segmentation', 'results', 'data', 'seg_metrics1.csv')
+        self.labels_path = os.path.join(PROJECT_ROOT, 'DATA', 'DATASET1', 'processed','labels_reversed')
+        self.auto_masks_path = os.path.join(PROJECT_ROOT, 'OPTICAL_FLOW', 'segmentation', 'results', 'figures', 'mergedVessels_1')
+
+        flipped_vessels_path = os.path.join(PROJECT_ROOT, 'vasi_specchiati_dataset1.txt')
+        self._flipped_subjects = set()
+        if os.path.exists(flipped_vessels_path):
+            with open(flipped_vessels_path, 'r') as f:
+                self._flipped_subjects = {line.strip() for line in f if line.strip()}
+
+        results_data_path = os.path.join(PROJECT_ROOT, 'OPTICAL_FLOW', 'farneback', 'results', 'ds1', 'data')
+        self.fovea_json_path = os.path.join(results_data_path, 'fovea_centers.json')
+        os.makedirs(results_data_path, exist_ok=True)
 
     def _is_flipped(self, subject: str) -> bool:
-        flipped_cols_csv = pd.read_csv(self.csv_seg_path, index_col=False, usecols=['SUBJECT', 'Flipped'])
-        row = flipped_cols_csv.loc[flipped_cols_csv['SUBJECT'] == f"{subject}PRE", 'Flipped']
-        return bool(row.values[0])
+        return subject in self._flipped_subjects
+
+    def _find_auto_mask(self, subject: str, timepoint: str) -> Optional[np.ndarray]:
+        for ext in ('.JPG', '.jpg', '.JPEG', '.jpeg', '.PNG', '.png'):
+            path = os.path.join(self.auto_masks_path, f"{subject}{timepoint}{ext}")
+            if os.path.exists(path):
+                return cv.imread(path, 0)
+        return None
+
+    def _get_fovea_center(self, subject: str, display_img: np.ndarray) -> tuple:
+        if subject in self.FOVEA_CENTER_DICT:
+            return self.FOVEA_CENTER_DICT[subject]
+
+        fovea_dict = {}
+        if os.path.exists(self.fovea_json_path):
+            with open(self.fovea_json_path, 'r') as f:
+                fovea_dict = json.load(f)
+
+        if subject in fovea_dict:
+            return tuple(fovea_dict[subject])
+
+        center = []
+
+        def click_event(event, x, y, flags, param):
+            if event == cv.EVENT_LBUTTONDOWN:
+                center.append((x, y))
+
+        window_name = f"Seleziona Fovea per {subject} (Clicca e poi premi un tasto)"
+        cv.namedWindow(window_name, cv.WINDOW_NORMAL)
+        cv.setMouseCallback(window_name, click_event)
+
+        display = display_img.copy()
+        cv.putText(display, "Clicca il centro della fovea e premi un tasto", (50, 50), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 3)
+        cv.imshow(window_name, display)
+        cv.waitKey(0)
+        cv.destroyAllWindows()
+
+        chosen_center = center[0] if center else (0, 0)
+        fovea_dict[subject] = chosen_center
+        with open(self.fovea_json_path, 'w') as f:
+            json.dump(fovea_dict, f)
+
+        return tuple(chosen_center)
 
     def __iter__(self) -> Iterator[SubjectPair]:
         for fname in sorted(os.listdir(self.src_path)):
@@ -56,30 +124,46 @@ class Dataset1Subjects:
                 continue  # si processa la coppia PRE-POST una volta sola, all'incontro del PRE
 
             subject = fname.split('PRE')[0]
-            if subject not in self.BEST_SUBJECTS:
+            if self.mask_source == "auto" and subject not in self.BEST_SUBJECTS:
                 continue
 
             fname_post = f"{subject}POST.JPG"
 
-            img_pre = clahe(cv.imread(os.path.join(self.src_path, fname), 0), 2, 4)
-            img_post = clahe(cv.imread(os.path.join(self.src_path, fname_post), 0), 2, 4)
+            img_pre_raw = cv.imread(os.path.join(self.src_path, fname), 0)
+            img_post_raw = cv.imread(os.path.join(self.src_path, fname_post), 0)
+            img_pre = clahe(img_pre_raw, 2, 4)
+            img_post = clahe(img_post_raw, 2, 4)
 
-            vessel_mask_pre = cv.imread(os.path.join(self.labels_path, subject, 'total_1.png'), 0)
-            vessel_mask_post = cv.imread(os.path.join(self.labels_path, subject, 'total_2.png'), 0)
+            if self.mask_source == "gt":
+                vessel_mask_pre = cv.imread(os.path.join(self.labels_path, subject, 'total_1.png'), 0)
+                vessel_mask_post = cv.imread(os.path.join(self.labels_path, subject, 'total_2.png'), 0)
+                if vessel_mask_pre is None or vessel_mask_post is None:
+                    continue
+                if self._is_flipped(subject):
+                    vessel_mask_pre = cv.flip(vessel_mask_pre, 1)
+                    vessel_mask_post = cv.flip(vessel_mask_post, 1)
+                vessel_mask_pre = vessel_mask_pre > 0
+                vessel_mask_post = vessel_mask_post > 0
+            else:  # auto
+                vessel_mask_pre = self._find_auto_mask(subject, 'PRE')
+                vessel_mask_post = self._find_auto_mask(subject, 'POST')
+                if vessel_mask_pre is None or vessel_mask_post is None:
+                    continue
+                # JPG con lieve rumore di compressione attorno a 0/255: soglia a metà scala
+                vessel_mask_pre = vessel_mask_pre > 127
+                vessel_mask_post = vessel_mask_post > 127
 
-            if self._is_flipped(subject):
-                vessel_mask_pre = cv.flip(vessel_mask_pre, 1)
-                vessel_mask_post = cv.flip(vessel_mask_post, 1)
+            fovea_center = self._get_fovea_center(subject, img_pre)
 
             yield SubjectPair(
                 id=subject,
                 comparison_label="PRE-POST",
                 img_pre=img_pre,
                 img_post=img_post,
-                vessel_mask_pre=vessel_mask_pre > 0,
-                vessel_mask_post=vessel_mask_post > 0,
-                fovea_center=self.FOVEA_CENTER_DICT[subject],
-                draw_image=cv.cvtColor(img_pre, cv.COLOR_GRAY2BGR),
+                vessel_mask_pre=vessel_mask_pre,
+                vessel_mask_post=vessel_mask_post,
+                fovea_center=fovea_center,
+                draw_image=cv.cvtColor(img_pre_raw, cv.COLOR_GRAY2BGR),
             )
 
 
@@ -95,9 +179,9 @@ class Dataset2Subjects:
     def __init__(self):
         self.src_path = os.path.join(PROJECT_ROOT, 'DATA', 'DATASET2', 'raw', 'Immagini_IR')
         self.vessels_base_path = os.path.join(PROJECT_ROOT, 'DATA', 'DATASET2', 'raw', 'Vessels_def')
-        results_path = os.path.join(PROJECT_ROOT, 'OPTICAL_FLOW', 'results', 'ds2', 'farneback', 'results')
-        self.fovea_json_path = os.path.join(results_path, 'data', 'fovea_centers.json')
-        os.makedirs(os.path.dirname(self.fovea_json_path), exist_ok=True)
+        results_data_path = os.path.join(PROJECT_ROOT, 'OPTICAL_FLOW', 'farneback', 'results', 'ds2', 'data')
+        self.fovea_json_path = os.path.join(results_data_path, 'fovea_centers.json')
+        os.makedirs(results_data_path, exist_ok=True)
 
         left_eyes_file = os.path.join(PROJECT_ROOT, 'nervo_a_sinistra.txt')
         self.flip_list = []
@@ -181,12 +265,12 @@ class Dataset2Subjects:
 
     def __iter__(self) -> Iterator[SubjectPair]:
         for subject in self._discover_subjects():
-            img_pre = self._get_ir_image(subject, '0')
-            if img_pre is None:
+            img_pre_raw = self._get_ir_image(subject, '0')
+            if img_pre_raw is None:
                 continue
 
-            h, w = img_pre.shape
-            fovea_center = self._get_fovea_center(subject, clahe(img_pre, 2, 4))
+            h, w = img_pre_raw.shape
+            fovea_center = self._get_fovea_center(subject, clahe(img_pre_raw, 2, 4))
 
             label_pre = self._get_vessel_label(subject, '0')
             if label_pre is None:
@@ -207,6 +291,8 @@ class Dataset2Subjects:
             if label_post.shape != (h, w):
                 label_post = cv.resize(label_post, (w, h), interpolation=cv.INTER_NEAREST)
 
+            img_pre = clahe(img_pre_raw, 2, 4)
+
             yield SubjectPair(
                 id=subject,
                 comparison_label=f"0-{self.FOLLOW_UP}",
@@ -215,5 +301,5 @@ class Dataset2Subjects:
                 vessel_mask_pre=self._label_to_vessel_mask(label_pre),
                 vessel_mask_post=self._label_to_vessel_mask(label_post),
                 fovea_center=fovea_center,
-                draw_image=cv.cvtColor(img_pre, cv.COLOR_GRAY2BGR),
+                draw_image=cv.cvtColor(img_pre_raw, cv.COLOR_GRAY2BGR),
             )
