@@ -6,3 +6,4 @@ results
 images_to_put_on_paper
 paper_imgs
 __pycache__
+.DS_Store
