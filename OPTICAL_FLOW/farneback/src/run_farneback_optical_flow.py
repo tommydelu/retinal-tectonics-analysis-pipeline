@@ -60,11 +60,13 @@ def _dense_field_for_subject(flow: FarnebackFlowField, subject_id: str, comparis
     cache_file = os.path.join(npy_cache_path, f"{subject_id}_{comparison_label}_interpolated_flow.npy")
 
     if os.path.exists(cache_file):
+        print(f"[{subject_id} {comparison_label}] campo denso già in cache, salto l'interpolazione")
         return np.load(cache_file)
 
     height, width = flow.magnitude.shape
     valid_coordinates, valid_values = flow.valid_points()
-    dense_field = interpolator.interpolate(valid_coordinates, valid_values, height, width)
+    dense_field = interpolator.interpolate(valid_coordinates, valid_values, height, width,
+                                            label=f"{subject_id} {comparison_label}")
     dense_field = FarnebackFlowField.clip_to_max_movement(dense_field, MAX_ALLOWED_MOVEMENT)
 
     np.save(cache_file, dense_field)
