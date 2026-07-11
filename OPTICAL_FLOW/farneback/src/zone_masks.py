@@ -6,19 +6,26 @@ class RetinalZoneMasks:
     Maschere geometriche centrate sulla fovea, usate per aggregare le metriche di optical
     flow per regione anatomica: intera immagine, ROI totale (anello interno + esterno),
     anello interno, anello esterno, e i quattro quadranti di ciascun anello.
+
+    I raggi interno ed esterno sono specificati separatamente per asse x e y: con pixel
+    non quadrati (risoluzioni non quadrate del dataset 2), un cerchio fisico (in um) si
+    proietta come un'ellisse in coordinate pixel.
     """
 
-    def __init__(self, height, width, fovea_center, inner_radius, outer_radius):
+    def __init__(self, height, width, fovea_center, inner_radius_x, inner_radius_y, outer_radius_x, outer_radius_y):
         cx, cy = fovea_center
         y_coords, x_coords = np.indices((height, width))
         dx = x_coords - cx
         dy = y_coords - cy
-        distance = np.sqrt(dx**2 + dy**2)
         angle = np.rad2deg(np.arctan2(-dy, dx))
 
+        # Distanza normalizzata rispetto ai due semiassi dell'ellisse: <= 1 è dentro.
+        inner_distance = np.sqrt((dx / inner_radius_x)**2 + (dy / inner_radius_y)**2)
+        outer_distance = np.sqrt((dx / outer_radius_x)**2 + (dy / outer_radius_y)**2)
+
         self.entire_image = np.ones((height, width), dtype=bool)
-        self.inner = distance <= inner_radius
-        self.outer = (distance > inner_radius) & (distance <= outer_radius)
+        self.inner = inner_distance <= 1
+        self.outer = (inner_distance > 1) & (outer_distance <= 1)
         self.total_roi = self.inner | self.outer
 
         # Quadranti geometrici (right/top/left/bottom secondo l'angolo standard, 0° = destra)

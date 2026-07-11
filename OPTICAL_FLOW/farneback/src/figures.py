@@ -9,7 +9,8 @@ from OPTICAL_FLOW.farneback.src.zone_masks import RetinalZoneMasks
 
 
 def save_quiver_figure(subject: SubjectPair, u: np.ndarray, v: np.ndarray, zones: RetinalZoneMasks,
-                        inner_radius: float, outer_radius: float, out_path: str) -> None:
+                        inner_radius_x: float, inner_radius_y: float, outer_radius_x: float, outer_radius_y: float,
+                        out_path: str) -> None:
     """Salva una figura in stile paper con il campo vettoriale sovrapposto all'immagine PRE del soggetto."""
 
     cx, cy = subject.fovea_center
@@ -22,11 +23,12 @@ def save_quiver_figure(subject: SubjectPair, u: np.ndarray, v: np.ndarray, zones
     thickness = 0.5
     linestyle = '--'
 
-    ax.add_patch(patches.Circle((cx, cy), inner_radius, fill=False, edgecolor=grid_color, linewidth=thickness, linestyle=linestyle))
-    ax.add_patch(patches.Circle((cx, cy), outer_radius, fill=False, edgecolor=grid_color, linewidth=thickness, linestyle=linestyle))
-    offset = outer_radius * 0.707
-    ax.plot([cx - offset, cx + offset], [cy - offset, cy + offset], color=grid_color, linewidth=thickness, linestyle=linestyle)
-    ax.plot([cx - offset, cx + offset], [cy + offset, cy - offset], color=grid_color, linewidth=thickness, linestyle=linestyle)
+    ax.add_patch(patches.Ellipse((cx, cy), 2 * inner_radius_x, 2 * inner_radius_y, fill=False, edgecolor=grid_color, linewidth=thickness, linestyle=linestyle))
+    ax.add_patch(patches.Ellipse((cx, cy), 2 * outer_radius_x, 2 * outer_radius_y, fill=False, edgecolor=grid_color, linewidth=thickness, linestyle=linestyle))
+    offset_x = outer_radius_x * 0.707
+    offset_y = outer_radius_y * 0.707
+    ax.plot([cx - offset_x, cx + offset_x], [cy - offset_y, cy + offset_y], color=grid_color, linewidth=thickness, linestyle=linestyle)
+    ax.plot([cx - offset_x, cx + offset_x], [cy + offset_y, cy - offset_y], color=grid_color, linewidth=thickness, linestyle=linestyle)
     ax.plot(cx, cy, marker='+', color=grid_color, markersize=5, markeredgewidth=thickness)
 
     retina_mask = subject.img_pre < 250

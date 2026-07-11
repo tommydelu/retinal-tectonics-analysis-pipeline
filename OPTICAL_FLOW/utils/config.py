@@ -1,10 +1,13 @@
-MAX_ALLOWED_MOVEMENT = 10
-MIN_ALLOWED_MOVEMENT = 1
-PIXEL_LENGTH   = 4.651162790697675     # in um
-INNER_DIAMETER = 4000/PIXEL_LENGTH     # pixels --> 4 mm = 4000 um / PIXEL_LENGTH
-OUTER_DIAMETER = 8000/PIXEL_LENGTH     # pixels --> 8 mm = 8000 um / PIXEL_LENGTH
-INNER_RADIUS   = int(INNER_DIAMETER/2) # pixels
-OUTER_RADIUS   = int(OUTER_DIAMETER/2) # pixels
+# Ogni coppia (min, max) viene eseguita come un ciclo completo separato su tutti i
+# soggetti: min = soglia sotto la quale un vettore è troppo debole (probabile rumore
+# statico), max = soglia sopra la quale un vettore è troppo forte (probabile outlier).
+MOVEMENT_THRESHOLDS = [
+    (1, 10),
+]
+
+PIXEL_LENGTH   = 4.651162790697675     # in um -- valore di default (dataset 1, risoluzione fissa)
+INNER_DIAMETER_UM = 4000               # um --> 4 mm
+OUTER_DIAMETER_UM = 8000               # um --> 8 mm
 
 fovea_center_dict = {'L_06': (918, 1104), 'L_15': (1006, 987), 'L_26': (942, 937), 'L_30': (946, 946), 'L_42': (1016, 1008), 
  'L_48': (930, 958), 'L_63': (1078, 973), 'L_78': (949, 951), 'S_08': (977, 982), 'S_46': (920, 1123)}
@@ -33,4 +36,32 @@ PIXEL_LENGTH_MAPPING = {'1904,1912': [4.641411925308371, 4.660913656086978], '13
 #     pixel_length_list = []
 
 # print(PIXEL_LENGTH_MAPPING)
+
+
+def get_pixel_length(width: int, height: int) -> tuple[float, float]:
+    """
+    Restituisce (pixel_length_x, pixel_length_y) in um/pixel per la risoluzione data.
+
+    Usa PIXEL_LENGTH_MAPPING se la risoluzione è presente (dataset 2, dove ogni immagine
+    può avere una risoluzione diversa), altrimenti ricade su PIXEL_LENGTH per entrambi gli
+    assi (dataset 1, risoluzione fissa e quadrata).
+    """
+    key = f"{width},{height}"
+    if key in PIXEL_LENGTH_MAPPING:
+        pixel_length_x, pixel_length_y = PIXEL_LENGTH_MAPPING[key]
+        return pixel_length_x, pixel_length_y
+    return PIXEL_LENGTH, PIXEL_LENGTH
+
+
+def compute_radii(pixel_length_x: float, pixel_length_y: float) -> tuple[int, int, int, int]:
+    """
+    Converte i diametri fisici (INNER/OUTER_DIAMETER_UM) in raggi in pixel, separatamente
+    per asse x e y. Con pixel non quadrati (pixel_length_x != pixel_length_y) le zone
+    anulari risultanti sono ellittiche in coordinate pixel, ma circolari in micrometri.
+    """
+    inner_radius_x = int(INNER_DIAMETER_UM / pixel_length_x / 2)
+    inner_radius_y = int(INNER_DIAMETER_UM / pixel_length_y / 2)
+    outer_radius_x = int(OUTER_DIAMETER_UM / pixel_length_x / 2)
+    outer_radius_y = int(OUTER_DIAMETER_UM / pixel_length_y / 2)
+    return inner_radius_x, inner_radius_y, outer_radius_x, outer_radius_y
 
