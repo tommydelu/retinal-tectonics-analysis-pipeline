@@ -26,7 +26,10 @@ La pixel_length (um/pixel) è determinata per-immagine dalla risoluzione: per il
 dove le risoluzioni variano da soggetto a soggetto e talvolta non sono quadrate, viene
 cercata in PIXEL_LENGTH_MAPPING (config.py) con valori separati per asse x e y; se la
 risoluzione non è mappata (dataset 1, sempre alla stessa risoluzione) si usa PIXEL_LENGTH.
-Da questa vengono ricavati inner/outer radius, anch'essi separati per asse x e y.
+Da questa vengono ricavati inner/outer radius, anch'essi separati per asse x e y, e il
+winsize di Farneback (get_farneback_winsize): scalato in proporzione alla pixel_length
+media dell'immagine, così la finestra di media di Farneback copre sempre la stessa area
+fisica indipendentemente dalla risoluzione.
 
 Esempio:
     python -m OPTICAL_FLOW.farneback.src.run_farneback_optical_flow --dataset 1 --mode interpolated --mask-source gt
@@ -43,7 +46,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from common.paths import PROJECT_ROOT
-from OPTICAL_FLOW.utils.config import MOVEMENT_THRESHOLDS, get_pixel_length, compute_radii
+from OPTICAL_FLOW.utils.config import MOVEMENT_THRESHOLDS, get_pixel_length, compute_radii, get_farneback_winsize
 from OPTICAL_FLOW.farneback.src.subjects import Dataset1Subjects, Dataset2Subjects
 from OPTICAL_FLOW.farneback.src.flow_field import FarnebackFlowField
 from OPTICAL_FLOW.farneback.src.flow_interpolator import RBFFlowInterpolator
@@ -108,12 +111,14 @@ def run(dataset: int, mode: str, mask_source: str = "gt", save_figures: bool = F
     all_results = {threshold: [] for threshold in thresholds}
 
     for subject in tqdm(subjects_source, desc=f"Dataset {dataset} ({mask_source}, {mode})"):
-        flow = FarnebackFlowField(subject.img_pre, subject.img_post,
-                                   subject.vessel_mask_pre, subject.vessel_mask_post)
-
-        height, width = flow.magnitude.shape
+        height, width = subject.img_pre.shape
         pixel_length_x, pixel_length_y = get_pixel_length(width, height)
         inner_radius_x, inner_radius_y, outer_radius_x, outer_radius_y = compute_radii(pixel_length_x, pixel_length_y)
+        winsize = get_farneback_winsize(pixel_length_x, pixel_length_y)
+
+        flow = FarnebackFlowField(subject.img_pre, subject.img_post,
+                                   subject.vessel_mask_pre, subject.vessel_mask_post, winsize)
+
         zones = RetinalZoneMasks(height, width, subject.fovea_center,
                                   inner_radius_x, inner_radius_y, outer_radius_x, outer_radius_y)
 

@@ -14,11 +14,11 @@ class FarnebackFlowField:
     """
 
     def __init__(self, img_pre: np.ndarray, img_post: np.ndarray, vessel_mask_pre: np.ndarray,
-                 vessel_mask_post: np.ndarray):
+                 vessel_mask_post: np.ndarray, winsize: int):
 
         self.raw_field = cv.calcOpticalFlowFarneback(
             prev=img_pre, next=img_post, flow=None,
-            pyr_scale=0.5, levels=5, winsize=31, iterations=10,
+            pyr_scale=0.5, levels=5, winsize=winsize, iterations=10,
             poly_n=7, poly_sigma=1.5, flags=0,
         )
 

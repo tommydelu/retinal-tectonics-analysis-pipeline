@@ -20,6 +20,11 @@ def compute_zone_metrics(u: np.ndarray, v: np.ndarray, zones: RetinalZoneMasks,
     (modalità "interpolated": il campo è denso, definito ovunque). Se `valid_mask`
     è fornita, viene intersecata con ciascuna regione prima di mediare (modalità
     "masked": si media solo sui pixel di vaso effettivamente validi).
+
+    Per ogni regione viene riportato anche "n_valid {suffix}", il numero di pixel su cui
+    è stata calcolata la media: se è 0, X/Y/magnitude di quella regione sono NaN (nessun
+    pixel di vaso valido in quella zona, non una misura di movimento nullo), e valori
+    piccoli segnalano una media comunque poco affidabile.
     """
 
     u_um = u * pixel_length_x
@@ -33,5 +38,6 @@ def compute_zone_metrics(u: np.ndarray, v: np.ndarray, zones: RetinalZoneMasks,
         metrics[f"X {suffix}"] = safe_mean(u_um, mask)
         metrics[f"Y {suffix}"] = safe_mean(v_um, mask)
         metrics[f"magnitude {suffix}"] = safe_mean(magnitude_um, mask)
+        metrics[f"n_valid {suffix}"] = int(np.count_nonzero(mask))
 
     return metrics

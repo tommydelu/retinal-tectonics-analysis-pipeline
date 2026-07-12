@@ -80,5 +80,6 @@ def create_subject_data(fname: str,best_subjects: list, src_path, masks_path, la
 
 
 def safe_mean(data: np.ndarray, mask: np.ndarray) -> np.ndarray:
-    # Se non c'è nessun elemento di mask = true su cui calcolare la media allora returna 0
-    return np.mean(data[mask]) if np.any(mask) else 0
+    # Se non c'è nessun elemento di mask = true su cui calcolare la media, ritorna NaN
+    # (dato mancante) invece di 0, per non confonderlo con una media realmente nulla.
+    return np.mean(data[mask]) if np.any(mask) else np.nan
