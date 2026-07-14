@@ -2,6 +2,7 @@ body
 {
     background-color: lightgray;
     margin:0;
+    font-family: 'Segoe UI', sans-serif;
     
 }
 
@@ -9,5 +10,28 @@ body
 {
     text-align: center;
     margin-top: 150px;
+
+}
+
+.title-container{ 
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.bottone-carica{
+
+    background-color:cornflowerblue;
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 5px 10px;
+    font-weight: bold;
+    margin-top: 20px;
+}
+
+.lista-file{
+    max-height: 150px;
+    overflow-y: auto;
 
 }

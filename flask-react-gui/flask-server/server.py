@@ -1,9 +1,11 @@
 import os
 
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from common.paths import PROJECT_ROOT
 
 app = Flask(__name__)
+cors = CORS(app) # permetto richieste da qualsiasi origine
 
 path = os.path.join(PROJECT_ROOT,'flask-react-gui','flask-server','loaded_imgs')
 os.makedirs(path, exist_ok=True)
