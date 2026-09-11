@@ -130,6 +130,8 @@ def run(dataset: int, mode: str, mask_source: str = "gt", save_figures: bool = F
         # 3. Aggiorniamo la chiamata a RetinalZoneMasks
         zones = RetinalZoneMasks(height, width, subject.fovea_center, inner_radius, outer_radius)
 
+        fov_mask = (subject.img_pre > 5) & (subject.img_post > 5)
+
         for min_move, max_move in thresholds:
             tag = _threshold_tag(min_move, max_move)
             valid_mask = flow.valid_mask_for_threshold(min_move, max_move, pixel_length)
@@ -139,11 +141,12 @@ def run(dataset: int, mode: str, mask_source: str = "gt", save_figures: bool = F
                                                          min_move, max_move, npy_cache_path, interpolator, pixel_length)
                 u, v = dense_field[:, :, 0], dense_field[:, :, 1]
                 # Passiamo una singola pixel_length
-                metrics = compute_zone_metrics(u, v, zones, pixel_length, valid_mask=None)
+                metrics = compute_zone_metrics(u, v, zones, pixel_length, valid_mask=fov_mask)
             else:  # masked
                 u, v = flow.raw_field[:, :, 0], flow.raw_field[:, :, 1]
                 # Passiamo una singola pixel_length
-                metrics = compute_zone_metrics(u, v, zones, pixel_length, valid_mask=valid_mask)
+                final_masked_valid = valid_mask & fov_mask
+                metrics = compute_zone_metrics(u, v, zones, pixel_length, valid_mask=final_masked_valid)
 
             all_results[(min_move, max_move)].append({
                 "dataset": dataset,

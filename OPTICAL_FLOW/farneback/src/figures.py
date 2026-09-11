@@ -36,7 +36,7 @@ def save_quiver_figure(subject: SubjectPair, u: np.ndarray, v: np.ndarray, zones
     ax.plot(cx, cy, marker='+', color=grid_color, markersize=5, markeredgewidth=thickness)
 
     # Mascheriamo il rumore all'esterno della retina (solitamente cerchio nero)
-    retina_mask = subject.img_pre < 250
+    retina_mask = (subject.img_pre > 5) & (subject.img_pre < 250)    
     u_plot = np.where(retina_mask, u, np.nan)
     v_plot = np.where(retina_mask, v, np.nan)
 

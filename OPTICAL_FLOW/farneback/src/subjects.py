@@ -11,6 +11,20 @@ from common.paths import PROJECT_ROOT
 from common.image_filters import clahe
 
 
+def preprocess_ir_image(img: np.ndarray) -> np.ndarray:
+    """
+    Applica la pipeline di filtraggio ottimale per l'Optical Flow:
+    1. Filtro Bilaterale: rimuove il rumore ad alta frequenza del sensore senza sfocare i vasi.
+    2. CLAHE: esalta il contrasto locale per evidenziare la micro-vascolarizzazione.
+    """
+    # d=9, sigmaColor=75, sigmaSpace=75 sono i valori standard storicamente più efficaci
+    img_filtered = cv.bilateralFilter(img, d=9, sigmaColor=75, sigmaSpace=75)
+    
+    # Applica il CLAHE (usando la tua funzione esistente)
+    img_final = clahe(img_filtered, 2, 4) 
+    
+    return img_final
+
 @dataclass
 class SubjectPair:
     """Una coppia di immagini PRE/POST pronta per il calcolo dell'optical flow."""
@@ -140,8 +154,8 @@ class Dataset1Subjects:
 
             img_pre_raw = cv.imread(os.path.join(self.src_path, fname), 0)
             img_post_raw = cv.imread(os.path.join(self.src_path, fname_post), 0)
-            img_pre = clahe(img_pre_raw, 2, 4)
-            img_post = clahe(img_post_raw, 2, 4)
+            img_pre = preprocess_ir_image(img_pre_raw)
+            img_post = preprocess_ir_image(img_post_raw)
 
             if self.mask_source == "gt":
                 vessel_mask_pre = cv.imread(os.path.join(self.labels_path, subject, 'total_1.png'), 0)
@@ -344,7 +358,6 @@ class Dataset2Subjects:
             # Uniforma img_post alla baseline senza stirare l'immagine
             if img_post.shape != (h, w):
                 img_post = self.match_shape(img_post, (h, w))
-            img_post = clahe(img_post, 2, 4)
 
             label_post = self._get_vessel_label(subject, self.FOLLOW_UP)
             if label_post is None:
@@ -353,7 +366,8 @@ class Dataset2Subjects:
             if label_post.shape != (h, w):
                 label_post = self.match_shape(label_post, (h, w))
 
-            img_pre = clahe(img_pre_raw, 2, 4)
+            img_post = preprocess_ir_image(img_post)           
+            img_pre = preprocess_ir_image(img_pre)           
 
             yield SubjectPair(
                 id=subject,
