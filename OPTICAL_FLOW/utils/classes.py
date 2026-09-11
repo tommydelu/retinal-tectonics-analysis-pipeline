@@ -42,12 +42,6 @@ class ConfigPaths:
         os.makedirs(self.DRAW_DST_PATH, exist_ok=True)
         os.makedirs(self.RBF_MATRICES_PATH, exist_ok=True)
 
-
-
-
-
-
-
 class Subject:
 
     def __init__(self,fname,src_path,labels_path):
