@@ -5,16 +5,13 @@ from OPTICAL_FLOW.farneback.src.zone_masks import RetinalZoneMasks
 
 
 def compute_zone_metrics(u: np.ndarray, v: np.ndarray, zones: RetinalZoneMasks,
-                          pixel_length_x: float, pixel_length_y: float, valid_mask: np.ndarray = None) -> dict:
+                          pixel_length: float, valid_mask: np.ndarray = None) -> dict:
     """
     Calcola la media di X (u), Y (v) e magnitudine dell'optical flow per ciascuna
     regione anatomica di `zones`, convertita in micrometri.
 
-    u e v vengono convertiti separatamente con pixel_length_x e pixel_length_y (possono
-    differire per risoluzioni non quadrate): la magnitudine viene poi ricavata dai
-    componenti già convertiti (sqrt(u_um^2 + v_um^2)), non da una magnitudine in pixel
-    scalata con un unico fattore, perché coi due assi anisotropi le due cose non
-    coincidono.
+    I pixel delle immagini IR/SLO sono isotropi (quadrati), quindi u e v vengono 
+    convertiti in micrometri moltiplicandoli per l'unica scala `pixel_length` (um/px).
 
     Se `valid_mask` è None, la media è calcolata su tutta la regione geometrica
     (modalità "interpolated": il campo è denso, definito ovunque). Se `valid_mask`
@@ -27,8 +24,8 @@ def compute_zone_metrics(u: np.ndarray, v: np.ndarray, zones: RetinalZoneMasks,
     piccoli segnalano una media comunque poco affidabile.
     """
 
-    u_um = u * pixel_length_x
-    v_um = v * pixel_length_y
+    u_um = u * pixel_length
+    v_um = v * pixel_length
     magnitude_um = np.sqrt(u_um**2 + v_um**2)
 
     metrics = {}

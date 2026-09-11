@@ -128,56 +128,56 @@ class Dataset1Subjects:
     def __iter__(self) -> Iterator[SubjectPair]:
 
         for fname in sorted(os.listdir(self.src_path)):
-            if 'L_06' in fname: 
-                if 'POST' in fname:
-                    continue  # si processa la coppia PRE-POST una volta sola, all'incontro del PRE
 
-                subject = fname.split('PRE')[0]
-                if self.mask_source == "auto" and subject not in self.BEST_SUBJECTS:
+            if 'POST' in fname:
+                continue  # si processa la coppia PRE-POST una volta sola, all'incontro del PRE
+
+            subject = fname.split('PRE')[0]
+            if self.mask_source == "auto" and subject not in self.BEST_SUBJECTS:
+                continue
+
+            fname_post = f"{subject}POST.JPG"
+
+            img_pre_raw = cv.imread(os.path.join(self.src_path, fname), 0)
+            img_post_raw = cv.imread(os.path.join(self.src_path, fname_post), 0)
+            img_pre = clahe(img_pre_raw, 2, 4)
+            img_post = clahe(img_post_raw, 2, 4)
+
+            if self.mask_source == "gt":
+                vessel_mask_pre = cv.imread(os.path.join(self.labels_path, subject, 'total_1.png'), 0)
+                vessel_mask_post = cv.imread(os.path.join(self.labels_path, subject, 'total_2.png'), 0)
+                if vessel_mask_pre is None or vessel_mask_post is None:
                     continue
+                vessel_mask_pre = self._resize_to_match(vessel_mask_pre, img_pre_raw.shape)
+                vessel_mask_post = self._resize_to_match(vessel_mask_post, img_post_raw.shape)
+                if self._is_flipped(subject):
+                    vessel_mask_pre = cv.flip(vessel_mask_pre, 1)
+                    vessel_mask_post = cv.flip(vessel_mask_post, 1)
+                vessel_mask_pre = vessel_mask_pre > 0
+                vessel_mask_post = vessel_mask_post > 0
+            else:  # auto
+                vessel_mask_pre = self._find_auto_mask(subject, 'PRE')
+                vessel_mask_post = self._find_auto_mask(subject, 'POST')
+                if vessel_mask_pre is None or vessel_mask_post is None:
+                    continue
+                vessel_mask_pre = self._resize_to_match(vessel_mask_pre, img_pre_raw.shape)
+                vessel_mask_post = self._resize_to_match(vessel_mask_post, img_post_raw.shape)
+                # JPG con lieve rumore di compressione attorno a 0/255: soglia a metà scala
+                vessel_mask_pre = vessel_mask_pre > 127
+                vessel_mask_post = vessel_mask_post > 127
 
-                fname_post = f"{subject}POST.JPG"
+            fovea_center = self._get_fovea_center(subject, img_pre)
 
-                img_pre_raw = cv.imread(os.path.join(self.src_path, fname), 0)
-                img_post_raw = cv.imread(os.path.join(self.src_path, fname_post), 0)
-                img_pre = clahe(img_pre_raw, 2, 4)
-                img_post = clahe(img_post_raw, 2, 4)
-
-                if self.mask_source == "gt":
-                    vessel_mask_pre = cv.imread(os.path.join(self.labels_path, subject, 'total_1.png'), 0)
-                    vessel_mask_post = cv.imread(os.path.join(self.labels_path, subject, 'total_2.png'), 0)
-                    if vessel_mask_pre is None or vessel_mask_post is None:
-                        continue
-                    vessel_mask_pre = self._resize_to_match(vessel_mask_pre, img_pre_raw.shape)
-                    vessel_mask_post = self._resize_to_match(vessel_mask_post, img_post_raw.shape)
-                    if self._is_flipped(subject):
-                        vessel_mask_pre = cv.flip(vessel_mask_pre, 1)
-                        vessel_mask_post = cv.flip(vessel_mask_post, 1)
-                    vessel_mask_pre = vessel_mask_pre > 0
-                    vessel_mask_post = vessel_mask_post > 0
-                else:  # auto
-                    vessel_mask_pre = self._find_auto_mask(subject, 'PRE')
-                    vessel_mask_post = self._find_auto_mask(subject, 'POST')
-                    if vessel_mask_pre is None or vessel_mask_post is None:
-                        continue
-                    vessel_mask_pre = self._resize_to_match(vessel_mask_pre, img_pre_raw.shape)
-                    vessel_mask_post = self._resize_to_match(vessel_mask_post, img_post_raw.shape)
-                    # JPG con lieve rumore di compressione attorno a 0/255: soglia a metà scala
-                    vessel_mask_pre = vessel_mask_pre > 127
-                    vessel_mask_post = vessel_mask_post > 127
-
-                fovea_center = self._get_fovea_center(subject, img_pre)
-
-                yield SubjectPair(
-                    id=subject,
-                    comparison_label="PRE-POST",
-                    img_pre=img_pre,
-                    img_post=img_post,
-                    vessel_mask_pre=vessel_mask_pre,
-                    vessel_mask_post=vessel_mask_post,
-                    fovea_center=fovea_center,
-                    draw_image=cv.cvtColor(img_pre_raw, cv.COLOR_GRAY2BGR),
-                )
+            yield SubjectPair(
+                id=subject,
+                comparison_label="PRE-POST",
+                img_pre=img_pre,
+                img_post=img_post,
+                vessel_mask_pre=vessel_mask_pre,
+                vessel_mask_post=vessel_mask_post,
+                fovea_center=fovea_center,
+                draw_image=cv.cvtColor(img_pre_raw, cv.COLOR_GRAY2BGR),
+            )
 
 
 class Dataset2Subjects:
@@ -187,10 +187,10 @@ class Dataset2Subjects:
     utilizzo (click interattivo) e da lì in poi riusata da una cache su file JSON.
     """
 
-    FOLLOW_UP = '12'
+    FOLLOW_UP = '1'
 
     def __init__(self):
-        self.src_path = os.path.join(PROJECT_ROOT, 'DATA', 'DATASET2', 'raw', 'Immagini_IR')
+        self.src_path = os.path.join(PROJECT_ROOT, 'DATA', 'DATASET2', 'raw', 'Immagini_IR_Corrette')
         self.vessels_base_path = os.path.join(PROJECT_ROOT, 'DATA', 'DATASET2', 'raw', 'Vessels_def')
         results_data_path = os.path.join(PROJECT_ROOT, 'OPTICAL_FLOW', 'farneback', 'results', 'ds2', 'data')
         self.fovea_json_path = os.path.join(results_data_path, 'fovea_centers.json')
@@ -202,6 +202,52 @@ class Dataset2Subjects:
             with open(left_eyes_file, 'r') as f:
                 self.flip_list = [line.strip().lower().replace("_", "") for line in f if line.strip()]
 
+    def match_shape(img: np.ndarray, target_shape: tuple[int, int], tolerance: int = 20) -> np.ndarray:
+        """
+        Uniforma la forma di 'img' a target_shape=(target_h, target_w).
+        - Se la differenza dimensionale è <= tolerance, usa crop/pad centrato per preservare la calibrazione.
+        - Se la differenza è > tolerance, assume un reale cambio di scala e applica cv.resize.
+        """
+        target_h, target_w = target_shape
+        h, w = img.shape[:2]
+        
+        if (h, w) == (target_h, target_w):
+            return img
+
+        # --- CONTROLLO AUTOMATICO: Crop/Pad o Resize? ---
+        if abs(h - target_h) > tolerance or abs(w - target_w) > tolerance:
+            # Differenza ampia: usiamo il resize interpolato
+            # print(f"  [Info] Shape mismatch elevato ({w}x{h} -> {target_w}x{target_h}). Applico cv.resize.")
+            # Se è una maschera binaria (es. label vasi), meglio INTER_NEAREST per non sfuocare i bordi
+            interp = cv.INTER_NEAREST if img.dtype == bool or len(np.unique(img)) <= 2 else cv.INTER_LINEAR
+            return cv.resize(img, (target_w, target_h), interpolation=interp)
+
+        # --- DIFFERENZA MINIMA: Usiamo Crop / Pad ---
+        # 1. Croppa se l'immagine è più grande
+        if h > target_h:
+            diff_y = h - target_h
+            top = diff_y // 2
+            img = img[top:top + target_h, :]
+        if w > target_w:
+            diff_x = w - target_w
+            left = diff_x // 2
+            img = img[:, left:left + target_w]
+
+        # 2. Aggiunge bordi neri se l'immagine è diventata più piccola (o lo era già)
+        h, w = img.shape[:2]
+        pad_top = max(0, (target_h - h) // 2)
+        pad_bottom = max(0, target_h - h - pad_top)
+        pad_left = max(0, (target_w - w) // 2)
+        pad_right = max(0, target_w - w - pad_left)
+
+        if any((pad_top, pad_bottom, pad_left, pad_right)):
+            img = cv.copyMakeBorder(
+                img, pad_top, pad_bottom, pad_left, pad_right,
+                borderType=cv.BORDER_CONSTANT, value=0
+            )
+
+        return img
+    
     def _discover_subjects(self) -> list[str]:
         baseline_files = glob.glob(os.path.join(self.src_path, "*_0.*"))
         return sorted({os.path.basename(f).split('_0')[0] for f in baseline_files if '_0' in f})
@@ -288,21 +334,24 @@ class Dataset2Subjects:
             label_pre = self._get_vessel_label(subject, '0')
             if label_pre is None:
                 continue
+            # Uniforma la maschera pre alla baseline
             if label_pre.shape != (h, w):
-                label_pre = cv.resize(label_pre, (w, h), interpolation=cv.INTER_NEAREST)
+                label_pre = self.match_shape(label_pre, (h, w))
 
             img_post = self._get_ir_image(subject, self.FOLLOW_UP)
             if img_post is None:
                 continue
+            # Uniforma img_post alla baseline senza stirare l'immagine
             if img_post.shape != (h, w):
-                img_post = cv.resize(img_post, (w, h), interpolation=cv.INTER_LINEAR)
+                img_post = self.match_shape(img_post, (h, w))
             img_post = clahe(img_post, 2, 4)
 
             label_post = self._get_vessel_label(subject, self.FOLLOW_UP)
             if label_post is None:
                 continue
+            # Uniforma la maschera post alla baseline
             if label_post.shape != (h, w):
-                label_post = cv.resize(label_post, (w, h), interpolation=cv.INTER_NEAREST)
+                label_post = self.match_shape(label_post, (h, w))
 
             img_pre = clahe(img_pre_raw, 2, 4)
 

@@ -44,7 +44,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from common.paths import PROJECT_ROOT
-from OPTICAL_FLOW.utils.config import MOVEMENT_THRESHOLDS, get_pixel_length, compute_radii, get_farneback_winsize
+from OPTICAL_FLOW.utils.config import getPixelLength, computeRadii, getFarnebackWinsize, DEFAULT_UM_PIXEL_LENGTH
 from OPTICAL_FLOW.farneback.src.subjects import Dataset1Subjects, Dataset2Subjects
 from OPTICAL_FLOW.farneback.src.flow_field import FarnebackFlowField
 from OPTICAL_FLOW.farneback.src.flow_interpolator import RBFFlowInterpolator
@@ -74,7 +74,7 @@ def _output_paths(dataset: int, mask_source: str):
 
 def _dense_field_for_subject(flow: FarnebackFlowField, valid_mask: np.ndarray, subject_id: str, comparison_label: str,
                               min_move: float, max_move: float, npy_cache_path: str,
-                              interpolator: RBFFlowInterpolator) -> np.ndarray:
+                              interpolator: RBFFlowInterpolator, pixel_length:float) -> np.ndarray:
     """Campo denso interpolato, riusato da cache su disco se già calcolato in una run precedente."""
     tag = _threshold_tag(min_move, max_move)
     cache_file = os.path.join(npy_cache_path, f"{subject_id}_{comparison_label}_{tag}_interpolated_flow.npy")
@@ -87,11 +87,10 @@ def _dense_field_for_subject(flow: FarnebackFlowField, valid_mask: np.ndarray, s
     valid_coordinates, valid_values = flow.valid_points(valid_mask)
     dense_field = interpolator.interpolate(valid_coordinates, valid_values, height, width,
                                             label=f"{subject_id} {comparison_label} {tag}")
-    dense_field = FarnebackFlowField.clip_to_max_movement(dense_field, max_move)
+    dense_field = FarnebackFlowField.clip_to_max_movement(dense_field, max_move, pixel_length)
 
     np.save(cache_file, dense_field)
     return dense_field
-
 
 
 def run(dataset: int, mode: str, mask_source: str = "gt", save_figures: bool = False,
@@ -102,6 +101,10 @@ def run(dataset: int, mode: str, mask_source: str = "gt", save_figures: bool = F
             "Il dataset 2 non ha maschere di segmentazione automatica: usa --mask-source gt."
         )
     
+    # Se le soglie non sono passate da terminale, usa quelle di default da config.py
+    if thresholds is None:
+        thresholds = MOVEMENT_THRESHOLDS
+    
     subjects_source = Dataset1Subjects(mask_source=mask_source) if dataset == 1 else Dataset2Subjects()
     results_data_path, figures_path, npy_cache_path = _output_paths(dataset, mask_source)
     interpolator = RBFFlowInterpolator()
@@ -110,28 +113,37 @@ def run(dataset: int, mode: str, mask_source: str = "gt", save_figures: bool = F
 
     for subject in tqdm(subjects_source, desc=f"Dataset {dataset} ({mask_source}, {mode})"):
         height, width = subject.img_pre.shape
-        pixel_length_x, pixel_length_y = get_pixel_length(width, height)
-        inner_radius_x, inner_radius_y, outer_radius_x, outer_radius_y = compute_radii(pixel_length_x, pixel_length_y)
-        winsize = get_farneback_winsize(pixel_length_x, pixel_length_y)
+        
+        # 1. Recuperiamo la scala corretta a seconda del dataset
+        if dataset == 1:
+            pixel_length = DEFAULT_UM_PIXEL_LENGTH
+        else:
+            pixel_length = getPixelLength(subject.id)
+            
+        # 2. Calcoliamo raggi e winsize con i valori isotropi (singoli)
+        inner_radius, outer_radius = computeRadii(pixel_length)
+        winsize = getFarnebackWinsize(pixel_length)
 
         flow = FarnebackFlowField(subject.img_pre, subject.img_post,
                                    subject.vessel_mask_pre, subject.vessel_mask_post, winsize)
 
-        zones = RetinalZoneMasks(height, width, subject.fovea_center,
-                                  inner_radius_x, inner_radius_y, outer_radius_x, outer_radius_y)
+        # 3. Aggiorniamo la chiamata a RetinalZoneMasks
+        zones = RetinalZoneMasks(height, width, subject.fovea_center, inner_radius, outer_radius)
 
         for min_move, max_move in thresholds:
             tag = _threshold_tag(min_move, max_move)
-            valid_mask = flow.valid_mask_for_threshold(min_move, max_move)
+            valid_mask = flow.valid_mask_for_threshold(min_move, max_move, pixel_length)
 
             if mode == "interpolated":
                 dense_field = _dense_field_for_subject(flow, valid_mask, subject.id, subject.comparison_label,
-                                                         min_move, max_move, npy_cache_path, interpolator)
+                                                         min_move, max_move, npy_cache_path, interpolator, pixel_length)
                 u, v = dense_field[:, :, 0], dense_field[:, :, 1]
-                metrics = compute_zone_metrics(u, v, zones, pixel_length_x, pixel_length_y, valid_mask=None)
+                # Passiamo una singola pixel_length
+                metrics = compute_zone_metrics(u, v, zones, pixel_length, valid_mask=None)
             else:  # masked
                 u, v = flow.raw_field[:, :, 0], flow.raw_field[:, :, 1]
-                metrics = compute_zone_metrics(u, v, zones, pixel_length_x, pixel_length_y, valid_mask=valid_mask)
+                # Passiamo una singola pixel_length
+                metrics = compute_zone_metrics(u, v, zones, pixel_length, valid_mask=valid_mask)
 
             all_results[(min_move, max_move)].append({
                 "dataset": dataset,
@@ -144,7 +156,8 @@ def run(dataset: int, mode: str, mask_source: str = "gt", save_figures: bool = F
 
             if save_figures:
                 fig_path = os.path.join(figures_path, f"{subject.id}_{mode}_{tag}.png")
-                save_quiver_figure(subject, u, v, zones, inner_radius_x, inner_radius_y, outer_radius_x, outer_radius_y, fig_path)
+                # Aggiornato per passare solo i due raggi
+                save_quiver_figure(subject, u, v, zones, inner_radius, outer_radius, fig_path)
 
     results_by_threshold = {}
     for threshold, rows in all_results.items():
@@ -169,8 +182,6 @@ def _parse_threshold(raw: str) -> tuple[float, float]:
     if min_move >= max_move:
         raise argparse.ArgumentTypeError(f"Soglia '{raw}' non valida: min deve essere minore di max")
     return min_move, max_move
-
-
 
 
 
